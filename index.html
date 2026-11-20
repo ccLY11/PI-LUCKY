@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#04060c" />
+<title>Π 动嘉年华 · 幸运码领取</title>
+<meta name="description" content="Π 动嘉年华幸运码领取终端：输入姓名与学号，领取来自圆周率 π 的 4 位幸运码。" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23060b14'/%3E%3Ctext x='32' y='47' font-size='42' text-anchor='middle' fill='%2337e6ff' font-family='monospace'%3E%CF%80%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="grid-bg" aria-hidden="true"></div>
+<div class="scanline" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<header class="hud">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 44 44">
+        <polygon points="22,2 40,12 40,32 22,42 4,32 4,12" fill="none" stroke="currentColor" stroke-width="1" opacity=".6" />
+        <circle cx="22" cy="22" r="12.5" fill="none" stroke="currentColor" stroke-width=".7" opacity=".28" stroke-dasharray="2 3" />
+        <text x="22" y="29.5" text-anchor="middle" font-family="Consolas, monospace" font-size="18" fill="currentColor">π</text>
+        <circle cx="22" cy="2" r="1.5" fill="currentColor" />
+        <circle cx="40" cy="22" r="1.5" fill="currentColor" />
+        <circle cx="4" cy="32" r="1.5" fill="currentColor" />
+      </svg>
+    </div>
+    <div>
+      <h1>Π 动嘉年华</h1>
+      <p class="sub">辽宁理工学院 · 计算机与人工智能学院 · LUCKY CODE TERMINAL</p>
+    </div>
+  </div>
+
+  <div class="hud-right">
+    <div class="sys-clock"><b id="clock">00:00:00</b><em>UTC+8</em></div>
+    <span class="sys-state"><i></i><span id="mode-label">SYSTEM ONLINE</span></span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="console" id="console">
+    <span class="cnr tl"></span><span class="cnr tr"></span><span class="cnr bl"></span><span class="cnr br"></span>
+
+    <div class="mode-flag" id="mode-flag"></div>
+
+    <div class="view-form" id="view-form">
+      <div class="console-head">
+        <div>
+          <span class="kicker">Lucky Node Protocol</span>
+          <h2>π 幸运码领取终端</h2>
+          <p>输入姓名与学号，从圆周率中截取 4 位属于你的幸运数字。<br />每个学号仅可领取一次。</p>
+        </div>
+        <div class="pi-watermark" aria-hidden="true">π</div>
+      </div>
+
+      <div class="form-err" id="form-err"></div>
+
+      <form id="claim-form" autocomplete="on" novalidate>
+        <div class="field" id="f-name">
+          <label for="in-name">姓名 <em>/ NAME</em></label>
+          <input id="in-name" name="name" type="text" inputmode="text" maxlength="20" placeholder="请输入你的姓名" autocomplete="name" />
+        </div>
+        <div class="field" id="f-no">
+          <label for="in-no">学号 <em>/ STUDENT ID</em></label>
+          <input id="in-no" name="studentNo" type="text" class="mono" maxlength="24" placeholder="请输入你的学号" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+        </div>
+
+        <button class="btn" id="btn-claim" type="submit">
+          <span class="spin" aria-hidden="true"></span>
+          <span id="btn-text">获取我的 π 幸运码</span>
+        </button>
+      </form>
+
+      <p class="hint">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.2" /><path d="M8 7.2v4M8 5v.6" stroke-linecap="round" />
+        </svg>
+        <span>幸运码由学号稳定映射自 π 小数部分的连续 4 位，并记录其在 π 中的位置。同一学号再次提交，将返回已领取的原幸运码。</span>
+      </p>
+    </div>
+
+    <div class="result" id="result" aria-live="polite">
+      <div class="result-top">
+        <span id="result-status">LUCKY CODE CONFIRMED</span>
+        <span class="badge" id="dup-badge" hidden><i></i>该学号已领取</span>
+      </div>
+
+      <div class="owner">
+        <div class="nm" id="r-name">—</div>
+        <div class="id" id="r-no">—</div>
+      </div>
+
+      <div class="codes" id="r-codes" aria-label="幸运码">
+        <span>0</span><span>0</span><span>0</span><span>0</span>
+      </div>
+
+      <p class="pos-line">
+        你的 4 位幸运码，取自圆周率 π 小数部分的第 <b id="r-pos">0</b> – <b id="r-pos2">0</b> 位
+      </p>
+
+      <div class="pi-ctx" id="r-ctx">π 3.14159…</div>
+
+      <div class="result-actions">
+        <button class="btn ghost" id="btn-copy" type="button">复制幸运码</button>
+        <button class="btn ghost" id="btn-again" type="button">查询其他学号</button>
+      </div>
+
+      <div class="copied" id="copied" aria-hidden="true">COPIED</div>
+    </div>
+  </section>
+
+  <div class="meta-strip">
+    <div class="meta-cell"><span>DATA SOURCE</span><b>π 小数前 2000 位</b></div>
+    <div class="meta-cell"><span>LIMIT</span><b>每学号限领 1 次</b></div>
+    <div class="meta-cell"><span>SYNC</span><b id="sync-label">云端实时同步</b></div>
+  </div>
+</main>
+
+<footer class="page-footer">
+  <span>SCAI · Π NIGHT 2026 · LUCKY NODE</span>
+  <a href="admin.html">管理端 / ADMIN →</a>
+</footer>
+
+<script src="js/pi-digits.js"></script>
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/bg.js"></script>
+<script src="js/claim.js"></script>
+</body>
+</html>

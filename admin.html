@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#04060c" />
+<title>Π 动嘉年华 · 幸运码统计台</title>
+<meta name="description" content="Π 动嘉年华幸运码后台：领取统计与 Excel 导出。" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23060b14'/%3E%3Ctext x='32' y='47' font-size='42' text-anchor='middle' fill='%2337e6ff' font-family='monospace'%3E%CF%80%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="grid-bg" aria-hidden="true"></div>
+<div class="scanline" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<header class="hud">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 44 44">
+        <polygon points="22,2 40,12 40,32 22,42 4,32 4,12" fill="none" stroke="currentColor" stroke-width="1" opacity=".6" />
+        <circle cx="22" cy="22" r="12.5" fill="none" stroke="currentColor" stroke-width=".7" opacity=".28" stroke-dasharray="2 3" />
+        <text x="22" y="29.5" text-anchor="middle" font-family="Consolas, monospace" font-size="18" fill="currentColor">π</text>
+        <circle cx="22" cy="2" r="1.5" fill="currentColor" />
+        <circle cx="40" cy="22" r="1.5" fill="currentColor" />
+        <circle cx="4" cy="32" r="1.5" fill="currentColor" />
+      </svg>
+    </div>
+    <div>
+      <h1>Π 动嘉年华</h1>
+      <p class="sub">ADMIN CONSOLE · LUCKY CODE STATISTICS</p>
+    </div>
+  </div>
+  <div class="hud-right">
+    <div class="sys-clock"><b id="clock">00:00:00</b><em>UTC+8</em></div>
+    <span class="sys-state"><i></i><span id="mode-label">SECURE CHANNEL</span></span>
+  </div>
+</header>
+
+<main class="wrap admin">
+  <!-- 登录门禁 -->
+  <section class="console gate" id="gate">
+    <span class="cnr tl"></span><span class="cnr tr"></span><span class="cnr bl"></span><span class="cnr br"></span>
+    <div class="console-head">
+      <div>
+        <span class="kicker">Restricted Access</span>
+        <h2>统计台登录</h2>
+        <p>请输入管理密码，查看幸运码领取统计并导出 Excel。</p>
+      </div>
+      <div class="pi-watermark" aria-hidden="true">π</div>
+    </div>
+
+    <div class="form-err" id="gate-err"></div>
+
+    <form id="gate-form" novalidate>
+      <div class="field">
+        <label for="in-pwd">管理密码 <em>/ ACCESS KEY</em></label>
+        <input id="in-pwd" type="password" class="mono" placeholder="请输入管理密码" autocomplete="current-password" />
+      </div>
+      <button class="btn" id="btn-login" type="submit">
+        <span class="spin" aria-hidden="true"></span>
+        <span id="btn-login-text">进入统计台</span>
+      </button>
+    </form>
+
+    <p class="hint">
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.2" /><path d="M8 7.2v4M8 5v.6" stroke-linecap="round" />
+      </svg>
+      <span>初始密码见 supabase.sql（默认 pi2026），上线前请到 Supabase 表 <code>pi_admin_config</code> 中修改；本地演示模式下使用 config.js 中的 DEMO_ADMIN_PASSWORD。</span>
+    </p>
+  </section>
+
+  <!-- 统计面板 -->
+  <section class="admin-shell" id="shell">
+    <div class="admin-notice" id="admin-notice"></div>
+
+    <div class="admin-top">
+      <div>
+        <h2>幸运码统计台</h2>
+        <p class="sub" id="data-source">DATA SOURCE · —</p>
+      </div>
+      <div class="toolbar">
+        <button class="btn-sm" id="btn-refresh" type="button">刷新数据</button>
+        <button class="btn-sm accent" id="btn-export" type="button">导出 Excel</button>
+        <button class="btn-sm" id="btn-logout" type="button">退出</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card"><span>TOTAL CLAIMED · 领取总数</span><b id="st-total">0</b><i>Σ</i></div>
+      <div class="stat-card"><span>TODAY · 今日新增</span><b id="st-today">0</b><i>#</i></div>
+      <div class="stat-card"><span>UNIQUE CODES · 唯一幸运码</span><b id="st-codes">0</b><i>π</i></div>
+      <div class="stat-card"><span>LATEST · 最近领取</span><b id="st-latest" class="small">—</b><i>→</i></div>
+    </div>
+
+    <div class="admin-main">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>领取时段分布</h3>
+          <span class="tag">HOURLY DISTRIBUTION · 0–23</span>
+        </div>
+        <canvas id="chart" width="800" height="150"></canvas>
+        <div class="chart-foot"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h3>系统状态</h3>
+          <span class="tag">SYSTEM STATUS</span>
+        </div>
+        <div class="kv-list">
+          <div class="meta-cell"><span>STORAGE</span><b id="sys-storage">—</b></div>
+          <div class="meta-cell"><span>UNIQUE CODES</span><b id="sys-codes">0 / 0</b></div>
+          <div class="meta-cell"><span>LAST SYNC</span><b id="sys-sync">—</b></div>
+          <div class="meta-cell"><span>EXPORT FORMAT</span><b>XLSX · 双表</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel table-panel">
+      <div class="table-toolbar">
+        <div class="toolbar" style="flex:1">
+          <input id="in-search" type="search" placeholder="搜索姓名 / 学号 / 幸运码" />
+        </div>
+        <span class="tag" id="table-count" style="font-family:var(--mono);font-size:10px;letter-spacing:1.4px;color:var(--muted)">0 条记录</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>NO.</th>
+              <th>姓名</th>
+              <th>学号</th>
+              <th>幸运码</th>
+              <th>π 位置</th>
+              <th>领取时间</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="page-footer">
+  <span>SCAI · Π NIGHT 2026 · ADMIN</span>
+  <a href="index.html">← 返回领取页</a>
+</footer>
+
+<script src="js/pi-digits.js"></script>
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/bg.js"></script>
+<script src="js/vendor/xlsx.full.min.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
